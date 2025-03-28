@@ -1,0 +1,722 @@
+  // En caso de error al escanear
+        function onScanError(error) {
+            console.warn(`Error al escanear: ${error}`);
+        }<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' 'unsafe-eval' data: blob: https://cdnjs.cloudflare.com https://wa.me">
+    <title>Sistema de Gestión de Paquetes</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html5-qrcode/2.3.4/html5-qrcode.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .tab {
+            overflow: hidden;
+            border: 1px solid #ccc;
+            background-color: #f1f1f1;
+            border-radius: 5px 5px 0 0;
+        }
+        .tab button {
+            background-color: inherit;
+            float: left;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            padding: 14px 16px;
+            transition: 0.3s;
+            font-size: 16px;
+        }
+        .tab button:hover {
+            background-color: #ddd;
+        }
+        .tab button.active {
+            background-color: #007bff;
+            color: white;
+        }
+        .tabcontent {
+            display: none;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-top: none;
+            border-radius: 0 0 5px 5px;
+            animation: fadeEffect 1s;
+        }
+        @keyframes fadeEffect {
+            from {opacity: 0;}
+            to {opacity: 1;}
+        }
+        .qr-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        .qr-item {
+            border: 1px solid #ddd;
+            padding: 10px;
+            text-align: center;
+            border-radius: 5px;
+        }
+        .qr-id {
+            font-weight: bold;
+            margin-top: 5px;
+        }
+        .btn {
+            background-color: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 10px 2px;
+            cursor: pointer;
+            border-radius: 5px;
+        }
+        .status {
+            margin-top: 20px;
+            padding: 10px;
+            border-radius: 5px;
+            display: none;
+        }
+        .success {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .error {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+        #contactsTable {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        #contactsTable th, #contactsTable td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        #contactsTable th {
+            background-color: #f2f2f2;
+        }
+        #contactsTable tr:hover {
+            background-color: #f5f5f5;
+        }
+        #qr-reader {
+            width: 100%;
+            max-width: 500px;
+        }
+        #startRange, #endRange {
+            width: 70px;
+        }
+        .contact-row:hover {
+            background-color: #e9f7fe;
+            cursor: pointer;
+        }
+        #addContactForm {
+            margin-top: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            background-color: #f9f9f9;
+        }
+        #addContactForm label {
+            display: block;
+            margin-bottom: 5px;
+        }
+        #addContactForm input {
+            width: 100%;
+            padding: 8px;
+            margin-bottom: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+        #addContactForm button {
+            width: 100%;
+        }
+    </style>
+</head>
+<body>
+    <h1>Sistema de Gestión de Paquetes</h1>
+    
+    <div class="tab">
+        <button class="tablinks active" onclick="openTab(event, 'generateQR')">Generar QR</button>
+        <button class="tablinks" onclick="openTab(event, 'scanQR')">Escanear QR</button>
+        <button class="tablinks" onclick="openTab(event, 'deliveryStatus')">Estado de Entregas</button>
+    </div>
+    
+    <div id="generateQR" class="tabcontent" style="display: block;">
+        <h2>Generar Códigos QR</h2>
+        <p>Genera códigos QR para imprimir y pegar en los paquetes:</p>
+        
+        <div>
+            <label for="startRange">Desde ID:</label>
+            <input type="number" id="startRange" min="1" max="999" value="1">
+            <label for="endRange">Hasta ID:</label>
+            <input type="number" id="endRange" min="1" max="999" value="10">
+            <button class="btn" onclick="generateQRCodes()">Generar QR</button>
+            <button class="btn" onclick="printQRCodes()">Imprimir QRs</button>
+        </div>
+        
+        <div id="qrContainer" class="qr-container"></div>
+    </div>
+    
+    <div id="scanQR" class="tabcontent">
+        <h2>Escanear Código QR</h2>
+        <p>Escanea el código QR para notificar al destinatario:</p>
+        
+        <div id="qr-reader"></div>
+        <div id="qrResult"></div>
+        
+        <div id="scanStatus" class="status"></div>
+    </div>
+    
+    <div id="manageContacts" class="tabcontent" style="display: none;"></div>
+    
+    <div id="deliveryStatus" class="tabcontent">
+        <h2>Estado de Entregas</h2>
+        <p>Gestiona el estado de los paquetes:</p>
+        
+        <table id="deliveryTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Fecha de Notificación</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                </tr>
+            </thead>
+            <tbody id="deliveryList">
+                <!-- Los paquetes se cargarán aquí -->
+            </tbody>
+        </table>
+    </div>
+
+    <script>
+        // Función para cambiar entre pestañas
+        function openTab(evt, tabName) {
+            var i, tabcontent, tablinks;
+            tabcontent = document.getElementsByClassName("tabcontent");
+            for (i = 0; i < tabcontent.length; i++) {
+                tabcontent[i].style.display = "none";
+            }
+            tablinks = document.getElementsByClassName("tablinks");
+            for (i = 0; i < tablinks.length; i++) {
+                tablinks[i].className = tablinks[i].className.replace(" active", "");
+            }
+            document.getElementById(tabName).style.display = "block";
+            evt.currentTarget.className += " active";
+            
+            // Iniciar scanner cuando se abre la pestaña de escaneo
+            if (tabName === 'scanQR') {
+                // Limpiar área de resultado
+                document.getElementById('qrResult').innerHTML = '';
+                document.getElementById('scanStatus').style.display = 'none';
+                
+                // Reiniciar el scanner
+                if (window.scanner) {
+                    try {
+                        window.scanner.stop();
+                    } catch (e) {
+                        console.error("Error al detener scanner:", e);
+                    }
+                    window.scanner = null;
+                }
+                
+                // Iniciar nuevo scanner
+                initScanner();
+            }
+        }
+        
+        // Generar códigos QR
+        function generateQRCodes() {
+            const startRange = parseInt(document.getElementById('startRange').value);
+            const endRange = parseInt(document.getElementById('endRange').value);
+            
+            if (startRange < 1 || endRange > 999 || startRange > endRange) {
+                alert("Por favor, introduce un rango válido entre 1 y 999");
+                return;
+            }
+            
+            const container = document.getElementById('qrContainer');
+            container.innerHTML = '';
+            
+            for (let id = startRange; id <= endRange; id++) {
+                const qrItem = document.createElement('div');
+                qrItem.className = 'qr-item';
+                
+                const qrElement = document.createElement('div');
+                qrElement.id = `qr-${id}`;
+                
+                const idElement = document.createElement('div');
+                idElement.className = 'qr-id';
+                // Formatear ID con ceros a la izquierda (001, 002, etc.)
+                idElement.textContent = id.toString().padStart(3, '0');
+                
+                qrItem.appendChild(qrElement);
+                qrItem.appendChild(idElement);
+                container.appendChild(qrItem);
+                
+                new QRCode(qrElement, {
+                    text: id.toString().padStart(3, '0'),
+                    width: 100,
+                    height: 100,
+                    colorDark: "#000000",
+                    colorLight: "#ffffff",
+                    correctLevel: QRCode.CorrectLevel.H
+                });
+            }
+        }
+        
+        // Imprimir códigos QR
+        function printQRCodes() {
+            const printContent = document.getElementById('qrContainer').innerHTML;
+            const originalContent = document.body.innerHTML;
+            
+            document.body.innerHTML = `
+                <style>
+                    body { font-family: Arial, sans-serif; }
+                    .qr-container {
+                        display: grid;
+                        grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+                        gap: 15px;
+                    }
+                    .qr-item {
+                        border: 1px solid #ddd;
+                        padding: 10px;
+                        text-align: center;
+                        page-break-inside: avoid;
+                    }
+                    .qr-id { font-weight: bold; margin-top: 5px; }
+                    @media print {
+                        @page { margin: 0.5cm; }
+                    }
+                </style>
+                <div class="qr-container">${printContent}</div>
+            `;
+            
+            window.print();
+            document.body.innerHTML = originalContent;
+            
+            // Recargar los listeners después de restaurar
+            document.querySelectorAll('.tablinks').forEach((tab, index) => {
+                tab.addEventListener('click', function(event) {
+                    openTab(event, ['generateQR', 'scanQR', 'manageContacts', 'deliveryStatus'][index]);
+                });
+                if (index === 0) tab.className += " active";
+            });
+            
+            // Reinicializar la página
+            document.getElementById('generateQR').style.display = "block";
+        }
+        
+        // Inicializar el escáner de QR
+        function initScanner() {
+            try {
+                const html5QrcodeScanner = new Html5Qrcode("qr-reader");
+                
+                html5QrcodeScanner.start(
+                    { facingMode: "environment" },
+                    { fps: 10, qrbox: 250 },
+                    onScanSuccess,
+                    onScanError
+                ).catch(error => {
+                    console.error("Error al iniciar el escáner:", error);
+                    showScannerError(error);
+                });
+                
+                window.scanner = html5QrcodeScanner;
+            } catch (error) {
+                console.error("Error al inicializar el escáner:", error);
+                showScannerError(error);
+            }
+        }
+        
+        // Mostrar mensaje de error cuando falla el escáner
+        function showScannerError(error) {
+            const qrReader = document.getElementById('qr-reader');
+            const errorMessage = document.createElement('div');
+            errorMessage.style.backgroundColor = "#f8d7da";
+            errorMessage.style.color = "#721c24";
+            errorMessage.style.padding = "15px";
+            errorMessage.style.borderRadius = "5px";
+            errorMessage.style.marginTop = "10px";
+            
+            // Determinar si es un error de permisos
+            const isPermissionError = error.toString().toLowerCase().includes('permission') || 
+                                    error.toString().toLowerCase().includes('permiso') ||
+                                    error.name === 'NotAllowedError';
+            
+            if (isPermissionError) {
+                errorMessage.innerHTML = `
+                    <h3>Error de permisos de cámara</h3>
+                    <p>No se pudo acceder a la cámara. Esto suele ocurrir por dos razones:</p>
+                    <ol>
+                        <li>No concediste permisos para usar la cámara.</li>
+                        <li>Estás abriendo el archivo localmente (file://) en lugar de desde un servidor web.</li>
+                    </ol>
+                    <p><strong>Soluciones:</strong></p>
+                    <ol>
+                        <li>Sube este archivo a un servidor web o utiliza un servidor local.</li>
+                        <li>Como alternativa, puedes usar la entrada manual de ID de paquete:</li>
+                    </ol>
+                `;
+                
+                // Añadir entrada manual
+                const manualInput = document.createElement('div');
+                manualInput.innerHTML = `
+                    <div style="margin-top: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <h4>Entrada manual de ID</h4>
+                        <input type="number" id="manualPackageId" min="100" max="999" placeholder="ID del paquete (100-999)" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                        <button class="btn" onclick="processManualPackageId()">Procesar ID</button>
+                    </div>
+                `;
+                
+                errorMessage.appendChild(manualInput);
+            } else {
+                errorMessage.innerHTML = `
+                    <h3>Error al iniciar el escáner</h3>
+                    <p>No se pudo iniciar el escáner de QR: ${error.toString()}</p>
+                    <p>Como alternativa, puedes usar la entrada manual de ID:</p>
+                    <div style="margin-top: 15px; padding: 10px; border: 1px solid #ddd; border-radius: 5px;">
+                        <h4>Entrada manual de ID</h4>
+                        <input type="number" id="manualPackageId" min="100" max="999" placeholder="ID del paquete (100-999)" style="width: 100%; padding: 8px; margin-bottom: 10px;">
+                        <button class="btn" onclick="processManualPackageId()">Procesar ID</button>
+                    </div>
+                `;
+            }
+            
+            // Limpiar el área del escáner y añadir el mensaje
+            qrReader.innerHTML = '';
+            qrReader.appendChild(errorMessage);
+        }
+        
+        // Procesar ID de paquete ingresado manualmente
+        function processManualPackageId() {
+            const packageId = document.getElementById('manualPackageId').value.trim();
+            
+            if (!packageId || packageId < 1 || packageId > 999) {
+                alert("Por favor, introduce un ID válido entre 1 y 999");
+                return;
+            }
+            
+            // Usar la misma función que cuando se escanea un QR
+            onScanSuccess(packageId);
+        }
+        
+        // Función cuando se escanea un QR exitosamente
+        function onScanSuccess(decodedText) {
+            // Detener el escáner
+            if (window.scanner) {
+                window.scanner.stop();
+                window.scanner = null;
+            }
+            
+            document.getElementById('qrResult').innerHTML = `
+                <h3>Paquete Escaneado: ID ${decodedText}</h3>
+                <p>Selecciona un contacto para enviar la notificación:</p>
+            `;
+            
+            // Mostrar lista de contactos para seleccionar
+            displayContactsForSelection(decodedText);
+            
+            // Guardar el paquete en el historial
+            savePackageToHistory(decodedText);
+        }
+        
+        // En caso de error al escanear
+        function onScanError(error) {
+            console.warn(`Error al escanear: ${error}`);
+        }
+        
+        // Mostrar contactos para seleccionar al escanear
+        function displayContactsForSelection(packageId) {
+            const contacts = getContacts();
+            let contactsHTML = '<table class="contactSelectionTable">';
+            contactsHTML += '<tr><th>Nombre</th><th>Acción</th></tr>';
+            
+            contacts.forEach(contact => {
+                contactsHTML += `
+                    <tr class="contact-row">
+                        <td>${contact.name}</td>
+                        <td>
+                            <button class="btn" onclick="sendWhatsAppNotification('${contact.phone}', '${packageId}')">
+                                Notificar
+                            </button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            contactsHTML += '</table>';
+            
+            // Si no hay contactos, mostrar mensaje
+            if (contacts.length === 0) {
+                contactsHTML = '<p>No hay contactos guardados. Por favor, añade contactos en la pestaña "Gestionar Contactos".</p>';
+            }
+            
+            document.getElementById('qrResult').innerHTML += contactsHTML;
+        }
+        
+        // Enviar notificación por WhatsApp
+        function sendWhatsAppNotification(phone, packageId) {
+            // Asegurar formato con ceros a la izquierda
+            const formattedId = packageId.toString().padStart(3, '0');
+            const message = `Tienes un paquete con el número ${formattedId}`;
+            const encodedMessage = encodeURIComponent(message);
+            const whatsappURL = `https://wa.me/${phone.replace(/\+/g, '')}?text=${encodedMessage}`;
+            
+            // Registrar la notificación
+            saveNotification(packageId, phone);
+            
+            // Abrir WhatsApp
+            window.open(whatsappURL, '_blank');
+            
+            // Mostrar confirmación
+            const statusDiv = document.getElementById('scanStatus');
+            statusDiv.innerHTML = 'Notificación enviada correctamente';
+            statusDiv.className = 'status success';
+            statusDiv.style.display = 'block';
+            
+            // Ocultar después de unos segundos
+            setTimeout(() => {
+                statusDiv.style.display = 'none';
+            }, 3000);
+            
+            // Reiniciar el escáner
+            document.getElementById('qrResult').innerHTML = '';
+            initScanner();
+        }
+        
+        // Funciones para gestionar contactos
+        function addContact() {
+            const name = document.getElementById('contactName').value.trim();
+            const phone = document.getElementById('contactPhone').value.trim();
+            
+            if (!name || !phone) {
+                alert('Por favor, completa todos los campos');
+                return;
+            }
+            
+            // Validar formato de teléfono
+            if (!phone.startsWith('+')) {
+                alert('El número de teléfono debe incluir el prefijo del país (ej: +34)');
+                return;
+            }
+            
+            const contacts = getContacts();
+            contacts.push({ name, phone });
+            saveContacts(contacts);
+            
+            // Limpiar formulario y actualizar lista
+            document.getElementById('contactName').value = '';
+            document.getElementById('contactPhone').value = '';
+            loadContacts();
+        }
+        
+        function deleteContact(index) {
+            const contacts = getContacts();
+            contacts.splice(index, 1);
+            saveContacts(contacts);
+            loadContacts();
+        }
+        
+        function loadContacts() {
+            const contacts = getContacts();
+            const contactsList = document.getElementById('contactsList');
+            contactsList.innerHTML = '';
+            
+            contacts.forEach((contact, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${contact.name}</td>
+                    <td>${contact.phone}</td>
+                    <td>
+                        <button class="btn" style="background-color: #dc3545;" onclick="deleteContact(${index})">Eliminar</button>
+                    </td>
+                `;
+                contactsList.appendChild(row);
+            });
+        }
+        
+        // Solución sin localStorage - usando variables en memoria
+        // Datos de la aplicación en memoria
+        if (!window.appData) {
+            window.appData = {
+                contacts: [],
+                packages: []
+            };
+        }
+        
+        // Gestión de contactos
+        function getContacts() {
+            try {
+                // Intenta usar localStorage si está disponible
+                if (isLocalStorageAvailable()) {
+                    const contacts = localStorage.getItem('packageSystemContacts');
+                    return contacts ? JSON.parse(contacts) : window.appData.contacts;
+                }
+            } catch (e) {
+                console.warn("No se pudo acceder a localStorage:", e);
+            }
+            // Fallback a memoria
+            return window.appData.contacts;
+        }
+        
+        function saveContacts(contacts) {
+            try {
+                // Intenta usar localStorage si está disponible
+                if (isLocalStorageAvailable()) {
+                    localStorage.setItem('packageSystemContacts', JSON.stringify(contacts));
+                }
+            } catch (e) {
+                console.warn("No se pudo guardar en localStorage:", e);
+            }
+            // Siempre guarda en memoria
+            window.appData.contacts = contacts;
+        }
+        
+        // Gestión de paquetes
+        function savePackageToHistory(packageId) {
+            const packages = getPackages();
+            
+            // Si el paquete ya existe, no hacer nada
+            if (packages.some(pkg => pkg.id === packageId)) {
+                return;
+            }
+            
+            packages.push({
+                id: packageId,
+                notified: false,
+                delivered: false,
+                recipient: '',
+                notificationDate: ''
+            });
+            
+            savePackages(packages);
+            loadPackages();
+        }
+        
+        function saveNotification(packageId) {
+            const packages = getPackages();
+            
+            // Actualizar el paquete
+            const packageIndex = packages.findIndex(pkg => pkg.id === packageId);
+            if (packageIndex !== -1) {
+                packages[packageIndex].notified = true;
+                packages[packageIndex].notificationDate = new Date().toLocaleString();
+            } else {
+                packages.push({
+                    id: packageId,
+                    notified: true,
+                    delivered: false,
+                    notificationDate: new Date().toLocaleString()
+                });
+            }
+            
+            savePackages(packages);
+            loadPackages();
+        }
+        
+        function markAsDelivered(packageId) {
+            const packages = getPackages();
+            const packageIndex = packages.findIndex(pkg => pkg.id === packageId);
+            
+            if (packageIndex !== -1) {
+                packages[packageIndex].delivered = true;
+                savePackages(packages);
+                loadPackages();
+            }
+        }
+        
+        function getPackages() {
+            try {
+                // Intenta usar localStorage si está disponible
+                if (isLocalStorageAvailable()) {
+                    const packages = localStorage.getItem('packageSystemPackages');
+                    return packages ? JSON.parse(packages) : window.appData.packages;
+                }
+            } catch (e) {
+                console.warn("No se pudo acceder a localStorage:", e);
+            }
+            // Fallback a memoria
+            return window.appData.packages;
+        }
+        
+        function savePackages(packages) {
+            try {
+                // Intenta usar localStorage si está disponible
+                if (isLocalStorageAvailable()) {
+                    localStorage.setItem('packageSystemPackages', JSON.stringify(packages));
+                }
+            } catch (e) {
+                console.warn("No se pudo guardar en localStorage:", e);
+            }
+            // Siempre guarda en memoria
+            window.appData.packages = packages;
+        }
+        
+        // Comprobar disponibilidad de localStorage
+        function isLocalStorageAvailable() {
+            try {
+                const test = 'test';
+                localStorage.setItem(test, test);
+                localStorage.removeItem(test);
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+        
+        function loadPackages() {
+            const packages = getPackages();
+            const deliveryList = document.getElementById('deliveryList');
+            deliveryList.innerHTML = '';
+            
+            packages.forEach(pkg => {
+                const row = document.createElement('tr');
+                const status = pkg.delivered ? 'Entregado' : (pkg.notified ? 'Notificado' : 'Pendiente');
+                const statusColor = pkg.delivered ? 'green' : (pkg.notified ? 'blue' : 'orange');
+                
+                row.innerHTML = `
+                    <td>${pkg.id}</td>
+                    <td>${pkg.notificationDate || '-'}</td>
+                    <td style="color: ${statusColor}; font-weight: bold;">${status}</td>
+                    <td>
+                        ${!pkg.delivered ? `<button class="btn" onclick="markAsDelivered('${pkg.id}')">Marcar como entregado</button>` : ''}
+                    </td>
+                `;
+                deliveryList.appendChild(row);
+            });
+        }
+        
+        // Inicializar la aplicación
+        window.onload = function() {
+            // Verificar disponibilidad de localStorage
+            const storageAvailable = isLocalStorageAvailable();
+            if (!storageAvailable) {
+                console.warn("LocalStorage no está disponible. La aplicación funcionará solo en memoria para esta sesión.");
+            }
+            
+            // Cargar paquetes
+            loadPackages();
+            
+            // Generar algunos QR por defecto
+            generateQRCodes();
+        };
+    </script>
+</body>
+</html>
